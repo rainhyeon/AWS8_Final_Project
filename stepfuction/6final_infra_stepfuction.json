@@ -1,0 +1,132 @@
+{
+  "Comment": "A description of my state machine",
+  "StartAt": "infra-terraform-generator-stepfunction",
+  "States": {
+    "infra-terraform-generator-stepfunction": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution.sync:2",
+      "Parameters": {
+        "StateMachineArn": "arn:aws:states:ap-northeast-2:798172178824:stateMachine:infra-terraform-generator-stepfunction",
+        "Input.$": "$"
+      },
+      "Next": "infra-tflint-validate-stepfunction"
+    },
+    "infra-tflint-validate-stepfunction": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution.sync:2",
+      "Parameters": {
+        "StateMachineArn": "arn:aws:states:ap-northeast-2:798172178824:stateMachine:infra-tflint-validate-stepfunction",
+        "Input": {
+          "project_id.$": "$.Input.project_id",
+          "token.$": "$.Input.token",
+          "Records.$": "$.Output.Records"
+        }
+      },
+      "Next": "TflintChoice"
+    },
+    "TflintChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.Output.error_present",
+          "BooleanEquals": false,
+          "Next": "infra-terratest-stepfunction"
+        },
+        {
+          "Next": "infra-tflint-validate-stepfunction",
+          "And": [
+            {
+              "Variable": "$.Output.error_present",
+              "BooleanEquals": true
+            },
+            {
+              "Variable": "$.Output.retry_count",
+              "NumericLessThan": 6
+            }
+          ]
+        }
+      ],
+      "Default": "TflintFail"
+    },
+    "infra-terratest-stepfunction": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution.sync:2",
+      "Parameters": {
+        "StateMachineArn": "arn:aws:states:ap-northeast-2:798172178824:stateMachine:infra-terratest-stepfunction",
+        "Input": {
+          "project_id.$": "$.Input.project_id",
+          "token.$": "$.Input.token",
+          "Records.$": "$.Output.Records"
+        }
+      },
+      "TimeoutSeconds": 7200,
+      "Next": "TerraChoice"
+    },
+    "TflintFail": {
+      "Type": "Fail"
+    },
+    "TerraChoice": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.Output.error_present",
+          "BooleanEquals": false,
+          "Next": "Start Least Privilege Policy StepFunction"
+        },
+        {
+          "And": [
+            {
+              "Variable": "$.Output.error_present",
+              "BooleanEquals": true
+            },
+            {
+              "Variable": "$.Output.error_count",
+              "NumericLessThan": 4
+            }
+          ],
+          "Next": "infra-tflint-validate-stepfunction"
+        }
+      ],
+      "Default": "TerraFail"
+    },
+    "Start Least Privilege Policy StepFunction": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution",
+      "Parameters": {
+        "StateMachineArn": "arn:aws:states:ap-northeast-2:798172178824:stateMachine:GetLeastPrivilegeThroughAthena",
+        "Input": {
+          "project_id.$": "$.Input.project_id",
+          "token.$": "$.Input.token",
+          "user_id.$": "$.Output.user_id",
+          "service_name.$": "$.Output.service_name",
+          "Records.$": "$.Output.Records",
+          "log_bucket.$": "$.Output.log_bucket",
+          "log_prefix.$": "$.Output.log_prefix",
+          "query_date.$": "$.Output.query_date"
+        }
+      },
+      "ResultPath": "$.report",
+      "Next": "Generate Report And Slack Alarm"
+    },
+    "Generate Report And Slack Alarm": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::states:startExecution.sync:2",
+      "Parameters": {
+        "StateMachineArn": "arn:aws:states:ap-northeast-2:798172178824:stateMachine:ReportAndAlarmCompleteInfra",
+        "Input": {
+          "project_id.$": "$.Input.project_id",
+          "token.$": "$.Input.token",
+          "Records.$": "$.Input.Records",
+          "report.$": "$.report"
+        }
+      },
+      "Next": "Success"
+    },
+    "TerraFail": {
+      "Type": "Fail"
+    },
+    "Success": {
+      "Type": "Succeed"
+    }
+  }
+}

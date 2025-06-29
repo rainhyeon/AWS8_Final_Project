@@ -1,0 +1,42 @@
+{
+  "Comment": "Terratest Codebuild Flow with Callback Pattern (waitForTaskToken)",
+  "StartAt": "Terratest Codebuild",
+  "States": {
+    "Terratest Codebuild": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "TimeoutSeconds": 3600,
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:ap-northeast-2:798172178824:function:TerratestDeployCodeBuild",
+        "Payload": {
+          "TaskToken.$": "$$.Task.Token",
+          "Records.$": "$.Records"
+        }
+      },
+      "Next": "Terratest Output Analysis"
+    },
+    "Terratest Output Analysis": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "OutputPath": "$.Payload",
+      "Parameters": {
+        "FunctionName": "arn:aws:lambda:ap-northeast-2:798172178824:function:TerratestOutputAnalyze",
+        "Payload.$": "$"
+      },
+      "Retry": [
+        {
+          "ErrorEquals": [
+            "Lambda.ServiceException",
+            "Lambda.AWSLambdaException",
+            "Lambda.SdkClientException",
+            "Lambda.TooManyRequestsException"
+          ],
+          "IntervalSeconds": 1,
+          "MaxAttempts": 3,
+          "BackoffRate": 2
+        }
+      ],
+      "End": true
+    }
+  }
+}
