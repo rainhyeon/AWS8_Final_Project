@@ -70,7 +70,7 @@ In variables.tf, you must include the following variables exactly as written bel
 - A variable named db_name with the description "DB name" the default "{SERVICE_NAME}_db".
 - A variable named db_username with the description "master user" the default "admin".
 - A variable named db_password with the description "master password" and with sensitive = true and the default "password".
-- A variable named domain_name with the description "Domain name" and the default "bboaws.shop".
+- A variable named domain_name with the description "Domain name" and the default "rainhyeon.store".
 
 Do not modify the variable names, descriptions, or default values.
 These variables must always be present in every variables.tf you generate.
@@ -79,17 +79,17 @@ These variables must always be present in every variables.tf you generate.
 - "서브도메인(record)": subdomain (e.g., www, api, test)
 - "온프레미스 공인 IP": onprem_ip
 
-For the domain "bboaws.shop", perform the following for each row in the table:
+For the domain "rainhyeon.store", perform the following for each row in the table:
 
-1. For each value in the "record" column (call it "subdomain") and its matching IP address (call it "onprem_ip"):
-- (a) Create a Route53 resource "A" record for the subdomain "subdomain.bboaws.shop" with:
+1. For each value in the "record" column (call it "subdomain") and its matching "온프레미스 공인 IP" (call it "onprem_ip"):
+- (a) Create a Route53 resource "A" record for the subdomain "subdomain.rainhyeon.store" with:
     - `records = ["onprem_ip"]`
     - `weighted_routing_policy {{ weight = 225 }}`
     - `set_identifier = "subdomain-onprem-weight-225"`
     - `type = "A"`
     - `zone_id = aws_route53_zone.this.zone_id`
      - `ttl = 300`
-- (b) Create a second "A" record for the same subdomain ("subdomain.bboaws.shop"), but as an alias to the ALB, with:
+- (b) Create a second "A" record for the same subdomain ("subdomain.rainhyeon.store"), but as an alias to the ALB, with:
     - `alias name = aws_lb.this.dns_name, zone_id = aws_lb.this.zone_id, evaluate_target_health = true`
     - `weighted_routing_policy {{ weight = 0 }}`
     - `set_identifier = "subdomain-alb-weight-0"`
@@ -99,7 +99,7 @@ This means: for every row, you must output exactly TWO aws_route53_record resour
 - Do not merge or collapse these resources into one. There must always be two Route53 records per subdomain.
 - The hosted zone must always be created as a resource using the domain_name variable, never data lookup.
 - "aws_route53_record" resource name must start with {SERVICE_NAME}.
-- Set the LB target group's health_check.path to the value provided as the "health check 경로" in {input_text}.
+- Update the health_check path to "health check 경로" based on the {input_text}.
 
 4. Key Design Constraints
 - Never import resources dynamically with data. create your own.
@@ -113,6 +113,7 @@ This means: for every row, you must output exactly TWO aws_route53_record resour
 - "enable_resource_name_dns_a_record_on_launch = true"
 - The db routing table does not route the natgateway.
 - Assign NAT Gateways (1 per AZ) and associated Elastic IPs
+- All created nat gateways are assigned to different subnets.
 - Create an ALB with TLS termination using ACM and Route53 DNS validation.
 - Do not generate dynamically with "aws_ami data".
 - If it is linux in "OS and AMI Strategy", assign "ami-0c593c3690c32e925" to "ami-08943a151bd468f4e" directly to ami_id in the instance.
@@ -120,6 +121,7 @@ This means: for every row, you must output exactly TWO aws_route53_record resour
 - Never use the "user_data" or "user_data_base64" argument in any aws_instance resource for web servers.
 - Attach proper IAM Role and Instance Profile for SSM access
 - Define all security groups with inline ingress/egress blocks
+- Please write the Terraform code in a way that avoids cycle (circular dependency) errors between aws_security_group.db, aws_security_group.web, and aws_security_group.alb.
 - Ensure ALB listeners wait for ACM certificate validation
 - Set up Route53 records for ACM validation and ALB access
 - Use wildcard SANs for ACM (`*.example.com`)
@@ -130,18 +132,13 @@ This means: for every row, you must output exactly TWO aws_route53_record resour
   - For SQL Server, set the `timezone` argument in the resource block directly.
 
 6. Resource Naming Rules
-- For all resources name and their Name tags, always use the pattern: {SERVICE_NAME}_"resource_type" or {SERVICE_NAME}_"resource_type"_"num" if needed.
-  - "resource_type" must be an explicit resource identifier such as vpc, rt, sg, subnet, igw, natgw, alb, aws_route53_record etc.
+- For every resource, set the Terraform local name and its tags["Name"] value to be identical, following the format: "{SERVICE_NAME}_resource_type".
 - Never change domain name and {SERVICE_NAME}.
-- Only for aws_db_instance, set the Name tag value to {SERVICE_NAME}_db.
-- Only for aws_instance of web servers, set the Name tag value to {SERVICE_NAME}_web_"num" (e.g., myproject_web_1, myproject_web_2).
-- Never create resources (of any type) with the same Name tag value in the entire Terraform codebase. All Name tag values must be unique.
 
 7. Output Rules
 - Output one code block per file
 - Use `for_each` where applicable (e.g., Route53 CNAME records)
 - Avoid placeholders — use realistic values or derive them from input
-
 
 Your goal is to produce complete, deployable Terraform code for the given infrastructure.
 
