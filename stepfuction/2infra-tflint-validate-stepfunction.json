@@ -6,6 +6,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "OutputPath": "$.Payload",
+      "TimeoutSeconds": 86400,
       "Parameters": {
         "FunctionName": "arn:aws:lambda:ap-northeast-2:798172178824:function:terraform-check-to-codedeploy:$LATEST",
         "Payload.$": "$"
@@ -34,6 +35,7 @@
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke",
       "OutputPath": "$.Payload",
+      "TimeoutSeconds": 86400,
       "Parameters": {
         "FunctionName": "arn:aws:lambda:ap-northeast-2:798172178824:function:ErrorLogNewTerraform:$LATEST",
         "Payload.$": "$"
