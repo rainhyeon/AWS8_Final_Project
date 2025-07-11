@@ -1,42 +1,86 @@
 {
-  "Comment": "Terratest Codebuild Flow with Callback Pattern (waitForTaskToken)",
-  "StartAt": "Terratest Codebuild",
+  "Comment": "Terratest Codebuild Retry Flow",
+  "StartAt": "Initialize RetryCount",
   "States": {
+    "Initialize RetryCount": {
+      "Type": "Pass",
+      "Parameters": {
+        "project_id.$": "$.project_id",
+        "step_id.$": "$.step_id",
+        "Records.$": "$.Records",
+        "token.$": "$.token",
+        "RetryCount": 0
+      },
+      "ResultPath": "$",
+      "Next": "Terratest Codebuild"
+    },
     "Terratest Codebuild": {
       "Type": "Task",
       "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
-      "TimeoutSeconds": 3600,
+      "TimeoutSeconds": 86400,
       "Parameters": {
         "FunctionName": "arn:aws:lambda:ap-northeast-2:798172178824:function:TerratestDeployCodeBuild",
         "Payload": {
           "TaskToken.$": "$$.Task.Token",
-          "Records.$": "$.Records"
+          "Records.$": "$.Records",
+          "RetryCount.$": "$.RetryCount",
+          "project_id.$": "$.project_id",
+          "step_id.$": "$.step_id",
+          "token.$": "$.token"
         }
       },
-      "Next": "Terratest Output Analysis"
+      "Next": "Check Build Result"
     },
-    "Terratest Output Analysis": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::lambda:invoke",
-      "OutputPath": "$.Payload",
-      "Parameters": {
-        "FunctionName": "arn:aws:lambda:ap-northeast-2:798172178824:function:TerratestOutputAnalyze",
-        "Payload.$": "$"
-      },
-      "Retry": [
+    "Check Build Result": {
+      "Type": "Choice",
+      "Choices": [
         {
-          "ErrorEquals": [
-            "Lambda.ServiceException",
-            "Lambda.AWSLambdaException",
-            "Lambda.SdkClientException",
-            "Lambda.TooManyRequestsException"
-          ],
-          "IntervalSeconds": 1,
-          "MaxAttempts": 3,
-          "BackoffRate": 2
+          "Variable": "$.build_status",
+          "StringEquals": "SUCCEEDED",
+          "Next": "Success"
+        },
+        {
+          "Variable": "$.build_status",
+          "StringEquals": "FAILED",
+          "Next": "Retry or Fail"
+        }
+      ]
+    },
+    "Retry or Fail": {
+      "Type": "Choice",
+      "Choices": [
+        {
+          "Variable": "$.RetryCount",
+          "NumericLessThan": 3,
+          "Next": "Increment RetryCount"
         }
       ],
-      "End": true
+      "Default": "Fail State"
+    },
+    "Increment RetryCount": {
+      "Type": "Pass",
+      "Parameters": {
+        "project_id.$": "$.project_id",
+        "step_id.$": "$.step_id",
+        "Records.$": "$.Records",
+        "token.$": "$.token",
+        "RetryCount.$": "States.MathAdd($.RetryCount, 1)"
+      },
+      "ResultPath": "$",
+      "Next": "Wait Before Retry"
+    },
+    "Wait Before Retry": {
+      "Type": "Wait",
+      "Seconds": 10,
+      "Next": "Terratest Codebuild"
+    },
+    "Success": {
+      "Type": "Succeed"
+    },
+    "Fail State": {
+      "Type": "Fail",
+      "Error": "BuildFailed",
+      "Cause": "Terratest CodeBuild failed after 3 retries"
     }
   }
 }
