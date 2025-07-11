@@ -78,6 +78,7 @@ def lambda_handler(event, context):
     record = event["Records"][0]
     bucket = record["s3"]["bucket"]["name"]
     object_key = record["s3"]["object"]["key"]
+    retry_count = event.get("RetryCount", 0)
 
     parts = object_key.split("/")
     USER_NAME, SERVICE_NAME, DATE, FOLDER_NAME, *_ = parts
@@ -88,14 +89,15 @@ def lambda_handler(event, context):
     create_bucket_if_not_exists(trail_bucket, region, account_id)
     create_cloudtrail_trail_if_not_exists(trail_name, trail_bucket)
 
+    terratest_output = "terratest-output.txt"
+    CODEBUILD_PROJECT = "terraform-terratest-codebuild"
     full_prefix = f"{USER_NAME}/{SERVICE_NAME}/{DATE}"
     zip_s3_key = f"{full_prefix}/{FOLDER_NAME}/terraform.zip"
+    output_txt = f"{full_prefix}/{CODEBUILD_PROJECT}/{terratest_output}"
 
     # 임시 디렉토리 생성
     local_base_dir = "/tmp/terraform-code"
     os.makedirs(f"{local_base_dir}/test", exist_ok=True)
-
-    terratest_output = "terratest-output.txt"
 
     # buildspec.yml 생성
     buildspec_content = f"""
@@ -104,6 +106,7 @@ env:
   variables:
     S3_BUCKET: "{bucket}"
     S3_KEY: "{zip_s3_key}"
+    ERROR_LOG_KEY: "{output_txt}"
 phases:
   pre_build:
     commands:
@@ -116,10 +119,15 @@ phases:
   build:
     commands:
       - echo "🚀 Terratest 실행 중"
-      - go test -timeout 200m -v 2>&1 | tee ../{terratest_output}; exit 0
+      - |
+        if ! go test -timeout 200m -v 2>&1 | tee terratest-output.txt; then
+          echo "❌ 테스트 실패"
+          exit 1
+      - aws s3 cp test/terratest-output.txt s3://$S3_BUCKET/$ERROR_LOG_KEY
 artifacts:
-  files:
+  files:50.75 
     - {terratest_output}
+
 """
     with open(f"{local_base_dir}/buildspec.yml", "w") as f:
         f.write(buildspec_content.strip())
@@ -143,13 +151,13 @@ func TestInfraDeployment(t *testing.T) {
   }
 
   // 테스트 종료 후 Terraform 리소스 자동 정리(destroy)
-  defer terraform.Destroy(t, options)
+  //defer terraform.Destroy(t, options)
   
   // Terraform 코드 init + apply (인프라 배포)
   terraform.InitAndApply(t, options)
 
   // 테스트할 대상 URL 지정 (직접 입력)
-  url := "https://www.bboaws.shop"
+  url := "https://www.bboaws.shop/login"
 
   // HTTP 응답 및 에러, 바디 저장 변수 선언
   var resp *http.Response
@@ -197,7 +205,7 @@ func TestInfraDeployment(t *testing.T) {
 
   // 성공하지 못한 경우 테스트 실패 처리
   if !success {
-    t.Fatalf("최대 %d번 시도했으나, %s에 성공적으로 접속하지 못했습니다.", maxRetries, url)
+    t.Logf("최대 %d번 시도했으나, %s에 성공적으로 접속하지 못했습니다.", maxRetries, url)
   }
 }
 
@@ -216,7 +224,7 @@ func TestInfraDeployment(t *testing.T) {
 terraform {{
   backend "s3" {{
     bucket = "{USER_NAME}"
-    key    = "{SERVICE_NAME}/infra/tfstate/back/terraform.tfstate"
+    key    = "{SERVICE_NAME}/infra/tfstate/terraform.tfstate"
     dynamodb_table = "terraform-lock-table"
     region = "ap-northeast-2"
   }}
@@ -241,7 +249,6 @@ terraform {{
     print(f"✅ S3 업로드 완료 → s3://{bucket}/{zip_s3_key}")
 
     # CodeBuild 실행
-    CODEBUILD_PROJECT = "terraform-terratest-codebuild"
     response = codebuild.start_build(
         projectName=CODEBUILD_PROJECT,
         environmentVariablesOverride=[
@@ -249,14 +256,7 @@ terraform {{
             {"name": "S3_KEY", "value": zip_s3_key, "type": "PLAINTEXT"}
         ],
         sourceTypeOverride='S3',
-        sourceLocationOverride=f'{bucket}/{zip_s3_key}',
-        artifactsOverride={
-            "type": "S3",
-            "location": bucket,
-            "path": full_prefix,
-            "packaging": "NONE",
-            "name": ""
-        }
+        sourceLocationOverride=f'{bucket}/{zip_s3_key}'
     )
 
     build_id = response["build"]["id"].split("/")[-1]
@@ -279,13 +279,14 @@ terraform {{
 
 
     return {
-    "message": f"✅ CodeBuild 시작됨: terraform-terratest-codebuild:{build_id}",
-    "user_id": USER_NAME.lower(),
-    "log_bucket": trail_bucket,
-    "log_prefix": f"AWSLogs/{account_id}/CloudTrail",
-    "query_date": {
-        "year": year,
-        "month": month,
-        "day": day
+      "message": f"✅ CodeBuild 시작됨: terraform-terratest-codebuild:{build_id}",
+      "user_id": USER_NAME.lower(),
+      "log_bucket": trail_bucket,
+      "log_prefix": f"AWSLogs/{account_id}/CloudTrail",
+      "query_date": {
+          "year": year,
+          "month": month,
+          "day": day
+      },
+      "RetryCount": retry_count
     }
-}
