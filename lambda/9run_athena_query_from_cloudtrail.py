@@ -1,184 +1,104 @@
-
+#[Authority 1] CloudTrail 로그가 저장된 S3 버킷에서 Athena Query를 통해 필요한 요소들만 추출해서 다시 S3로 저장
 import boto3
 import json
 import os
+import time
 
+ATHENA_DATABASE = os.environ.get("ATHENA_DATABASE", "default")
+ATHENA_TABLE = os.environ.get("ATHENA_TABLE", "cloudtrail_logs")
+ACCOUNT_ID = os.environ.get("ACCOUNT_ID", "798172178824")
+
+athena = boto3.client("athena")
 
 def lambda_handler(event, context):
-    s3 = boto3.client('s3')
-    bedrock = boto3.client('bedrock-runtime', region_name='ap-northeast-2')
-    sfn = boto3.client('stepfunctions')
+    print("📥 입력 이벤트:", json.dumps(event, indent=2, ensure_ascii=False))
 
-    if "Records" in event and isinstance(event["Records"], list):
-        s3_info = event["Records"][0]["s3"]
-    elif "Records" in event and isinstance(event["Records"], dict):
-        s3_info = event["Records"]["s3"]
-    else:
-        raise Exception("❌ event 구조가 예상과 다릅니다")
+    # ✅ Step Function으로부터 직접 전달되는 구조 대응
+    if "body" in event:
+        event = json.loads(event["body"])  # API Gateway나 첫 람다 결과를 string으로 받을 경우 파싱
 
-    bucket = s3_info['bucket']['name']
-    object_key = s3_info['object']['key']
+    user_id = event["user_id"]
+    project_id = event["project_id"]
+    service_name = event["service_name"]
+    step_id = event["step_id"]
+    token = event["token"]
+    log_bucket = event["log_bucket"]
+    log_prefix = event["log_prefix"]  # 예: AWSLogs/798172178824/CloudTrail
+    year = event["query_date"]["year"]
+    month = event["query_date"]["month"]
+    day = event["query_date"]["day"]
 
-    parts = object_key.split("/")
-    USER_NAME, SERVICE_NAME, DATE, *_ = parts
+    regions = ['ap-northeast-2', 'us-east-1']
+    result_path = f"s3://{log_bucket}/athena-results/{year}/{month}/{day}/"
 
-    error_count = event.get('error_count', 0)
+    # ✅ 1. 파티션 추가
+    for region in regions:
+        location = f"s3://{log_bucket}/{log_prefix}/{region}/{year}/{month}/{day}/"
+        partition_query = f"""
+        ALTER TABLE {ATHENA_TABLE}
+        ADD IF NOT EXISTS PARTITION (
+          region='{region}',
+          year='{year}',
+          month='{month}',
+          day='{day}'
+        )
+        LOCATION '{location}'
+        """
+        execute_athena_query(partition_query, result_path)
+        print(f"✅ 파티션 추가 완료 for region: {region}")
 
-    STATIC_CODEBUILD_NAME = "infra-terraform-invalidation"
-    DYNAMIC_CODEBUILD_NAME = "terraform-terratest-codebuild"
-
-    static_base_prefix = f"{USER_NAME}/{SERVICE_NAME}/{DATE}/{STATIC_CODEBUILD_NAME}/"
-    dynamic_base_prefix = f"{USER_NAME}/{SERVICE_NAME}/{DATE}/{DYNAMIC_CODEBUILD_NAME}/"
-
-    tf_key = static_base_prefix + "terraform.tf"
-    terratest_key = dynamic_base_prefix + "terratest-output.txt"
-
-    print(f"terraform 코드: {tf_key}")
-    print(f"teratest 결과물: {terratest_key}")
-
-    terratest_obj = s3.get_object(Bucket=bucket, Key=terratest_key)
-    terratest_content = terratest_obj['Body'].read().decode('utf-8')
-
-    final_tf_key = f"{SERVICE_NAME}/infra/output/terraform.tf"
-    tf_obj = s3.get_object(Bucket=bucket, Key=tf_key)
-    tf_content = tf_obj['Body'].read().decode('utf-8')
-
-    terratest_content_lower = terratest_content.lower()
-    if "error" in terratest_content_lower:
-        error_lines = [
-            line for line in terratest_content_lower.splitlines() if "error" in line
-        ]
-        error_present = any(("go-multierror" not in line) for line in error_lines)
-    else:
-        error_present = False
-
-    if not error_present:
-        s3.put_object(Bucket=USER_NAME, Key=final_tf_key, Body=tf_content.encode('utf-8'))
-
-        return {
-            "Records": [
-                {
-                    "s3": {
-                        "bucket": {"name": bucket},
-                        "object": {"key": tf_key}
-                    }
-                }
-            ],
-            "status": "success",
-            "error_present": False,
-            "error_count": error_count,
-            "message": "테라폼 테스트가 성공적으로 완료되었습니다.",
-            "user_id": USER_NAME,
-            "service_name": SERVICE_NAME,
-            "log_bucket": f"cloudtrail-logs-{USER_NAME}",
-            "log_prefix": f"AWSLogs/{os.environ.get('ACCOUNT_ID', '798172178824')}/CloudTrail",
-            "query_date": {
-                "year": DATE[:4],
-                "month": DATE[4:6],
-                "day": DATE[6:8]
-            }
-        }
-
-    prompt = f"""
-You are a professional Terraform architect
-Below are the Terraform test results (error) and the Terraform code.
-Analyze the error and print out a new terraform code that fixes all problems.
-
---- Terra test output.txt ---
-{terratest_content}
-
---- terraform.tf ---
-{tf_content}
-
-- Output each file in this format:
-- Split each logical component into separate `.tf` blocks (e.g., `vpc.tf`, `subnet.tf`, `security_groups.tf`, `alb.tf`, `ec2.tf`, `iam.tf`, `outputs.tf`)
-- Use only Terraform native syntax, no comments or explanations
-- Code must be directly executable with `terraform apply`
-- Output each file in this format:
-
-// Filename: terraform.tf
-```
-<Terraform code block>
-```
-Only include code blocks for .tf files.
-"""
-
-    body = {
-        "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 8184,
-        "top_k": 250,
-        "stop_sequences": [],
-        "temperature": 0,
-        "top_p": 0,
-        "messages": [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "text",
-                        "text": prompt
-                    }
-                ]
-            }
-        ]
-    }
-
-    response = bedrock.invoke_model(
-        modelId="apac.anthropic.claude-sonnet-4-20250514-v1:0",
-        contentType="application/json",
-        accept="application/json",
-        body=json.dumps(body)
-    )
-
-    result = json.loads(response['body'].read())
-    new_tf_code = result["content"][0]["text"].strip()
-
-    import re
-    new_tf_code = re.findall(
-        r"// Filename: (.+?\.tf)\n```(?:hcl)?\n([\s\S]*?)```", new_tf_code
-    )
-
-    combined_code = ""
-    for filename, code in new_tf_code:
-        combined_code += f"// Filename: {filename.strip()}\n{code.strip()}\n\n"
-
-    s3.put_object(Bucket=bucket, Key=tf_key, Body=combined_code.encode('utf-8'))
-
-    sfn.start_execution(
-        stateMachineArn="arn:aws:states:ap-northeast-2:798172178824:stateMachine:GenerateIAMPolicyStepFunction",
-        input=json.dumps({
-            "user_id": USER_NAME,
-            "log_bucket": f"cloudtrail-logs-{USER_NAME}",
-            "log_prefix": f"AWSLogs/{os.environ.get('ACCOUNT_ID', '798172178824')}/CloudTrail",
-            "query_date": {
-                "year": DATE[:4],
-                "month": DATE[4:6],
-                "day": DATE[6:8]
-            }
-        })
-    )
+    # ✅ 2. SELECT DISTINCT 쿼리
+    query = f"""
+    SELECT DISTINCT
+      json_extract_scalar(rec, '$.eventSource') AS event_source,
+      json_extract_scalar(rec, '$.eventName') AS event_name
+    FROM {ATHENA_TABLE}
+    CROSS JOIN UNNEST(CAST(json_extract(line, '$.Records') AS ARRAY<JSON>)) AS t(rec)
+    WHERE year = '{year}'
+      AND month = '{month}'
+      AND day = '{day}'
+      AND region IN ('ap-northeast-2', 'us-east-1')
+      AND (
+        json_extract_scalar(rec, '$.userIdentity.arn') LIKE 'arn:aws:sts::{ACCOUNT_ID}:assumed-role/terraform-terratest-codebuild-role%'
+        OR json_extract_scalar(rec, '$.userAgent') LIKE '%Terraform%'
+      )
+    """
+    execute_athena_query(query, result_path)
+    print("✅ Athena SELECT DISTINCT 쿼리 완료:", result_path)
 
     return {
-        "Records": [
-            {
-                "s3": {
-                    "bucket": {"name": bucket},
-                    "object": {"key": tf_key}
-                }
-            }
-        ],
-        "status": "error_fixed",
-        "error_present": True,
-        "error_count": error_count + 1,
-        "message": "에러가 감지되어 terraform.tf를 수정하여 저장함.",
-        "terraform_key": tf_key,
-        "user_id": USER_NAME,
-        "service_name": SERVICE_NAME,
-        "log_bucket": f"cloudtrail-logs-{USER_NAME}",
-        "log_prefix": f"AWSLogs/{os.environ.get('ACCOUNT_ID', '798172178824')}/CloudTrail",
+        "statusCode": 200,
+        "project_id": project_id,
+        "user_id": user_id,
+        "step_id": step_id,
+        "token": token,
+        "log_bucket": log_bucket,
+        "log_prefix": log_prefix,
+        "service_name": service_name,
+        "athena_output_path": result_path,
         "query_date": {
-            "year": DATE[:4],
-            "month": DATE[4:6],
-            "day": DATE[6:8]
+            "year": year,
+            "month": month,
+            "day": day
         }
     }
+
+def execute_athena_query(query, output_path):
+    response = athena.start_query_execution(
+        QueryString=query,
+        QueryExecutionContext={'Database': ATHENA_DATABASE},
+        ResultConfiguration={'OutputLocation': f"{output_path}query-temp/"},
+        WorkGroup='primary'
+    )
+    execution_id = response['QueryExecutionId']
+
+    # 쿼리 완료까지 대기
+    while True:
+        result = athena.get_query_execution(QueryExecutionId=execution_id)
+        state = result['QueryExecution']['Status']['State']
+        if state in ['SUCCEEDED', 'FAILED', 'CANCELLED']:
+            break
+        time.sleep(2)
+
+    if state != 'SUCCEEDED':
+        raise Exception(f"Athena 쿼리 실패: {state}")
