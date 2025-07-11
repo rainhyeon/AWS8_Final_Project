@@ -144,19 +144,19 @@ Only include code blocks for .tf files.
 
     s3.put_object(Bucket=bucket, Key=tf_key, Body=combined_code.encode('utf-8'))
 
-    sfn.start_execution(
-        stateMachineArn="arn:aws:states:ap-northeast-2:798172178824:stateMachine:GenerateIAMPolicyStepFunction",
-        input=json.dumps({
-            "user_id": USER_NAME,
-            "log_bucket": f"cloudtrail-logs-{USER_NAME}",
-            "log_prefix": f"AWSLogs/{os.environ.get('ACCOUNT_ID', '798172178824')}/CloudTrail",
-            "query_date": {
-                "year": DATE[:4],
-                "month": DATE[4:6],
-                "day": DATE[6:8]
-            }
-        })
-    )
+#    sfn.start_execution(
+#        stateMachineArn="arn:aws:states:ap-northeast-2:798172178824:stateMachine:GenerateIAMPolicyStepFunction",
+#        input=json.dumps({
+#            "user_id": USER_NAME,
+#            "log_bucket": f"cloudtrail-logs-{USER_NAME}",
+#            "log_prefix": f"AWSLogs/{os.environ.get('ACCOUNT_ID', '798172178824')}/CloudTrail",
+#            "query_date": {
+#                "year": DATE[:4],
+#                "month": DATE[4:6],
+#                "day": DATE[6:8]
+#            }
+#        })
+#    )
 
     return {
         "Records": [
