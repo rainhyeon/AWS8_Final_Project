@@ -18,10 +18,12 @@
         "StateMachineArn": "arn:aws:states:ap-northeast-2:798172178824:stateMachine:infra-tflint-validate-stepfunction",
         "Input": {
           "project_id.$": "$.Input.project_id",
+          "step_id.$": "$.Input.step_id",
           "token.$": "$.Input.token",
           "Records.$": "$.Output.Records"
         }
       },
+      "TimeoutSeconds": 7200,
       "Next": "TflintChoice"
     },
     "TflintChoice": {
@@ -55,6 +57,7 @@
         "StateMachineArn": "arn:aws:states:ap-northeast-2:798172178824:stateMachine:infra-terratest-stepfunction",
         "Input": {
           "project_id.$": "$.Input.project_id",
+          "step_id.$": "$.Input.step_id",
           "token.$": "$.Input.token",
           "Records.$": "$.Output.Records"
         }
@@ -91,11 +94,12 @@
     },
     "Start Least Privilege Policy StepFunction": {
       "Type": "Task",
-      "Resource": "arn:aws:states:::states:startExecution",
+      "Resource": "arn:aws:states:::states:startExecution.sync",
       "Parameters": {
         "StateMachineArn": "arn:aws:states:ap-northeast-2:798172178824:stateMachine:GetLeastPrivilegeThroughAthena",
         "Input": {
           "project_id.$": "$.Input.project_id",
+          "step_id.$": "$.Input.step_id",
           "token.$": "$.Input.token",
           "user_id.$": "$.Output.user_id",
           "service_name.$": "$.Output.service_name",
@@ -106,20 +110,6 @@
         }
       },
       "ResultPath": "$.report",
-      "Next": "Generate Report And Slack Alarm"
-    },
-    "Generate Report And Slack Alarm": {
-      "Type": "Task",
-      "Resource": "arn:aws:states:::states:startExecution.sync:2",
-      "Parameters": {
-        "StateMachineArn": "arn:aws:states:ap-northeast-2:798172178824:stateMachine:ReportAndAlarmCompleteInfra",
-        "Input": {
-          "project_id.$": "$.Input.project_id",
-          "token.$": "$.Input.token",
-          "Records.$": "$.Input.Records",
-          "report.$": "$.report"
-        }
-      },
       "Next": "Success"
     },
     "TerraFail": {
