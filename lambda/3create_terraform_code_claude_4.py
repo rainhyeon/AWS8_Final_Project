@@ -37,6 +37,126 @@ def lambda_handler(event, context):
     response = s3.get_object(Bucket=bucket_name, Key=object_key)
     input_text = response['Body'].read().decode('utf-8')
 
+    default_dms_iam_role = """
+resource "aws_iam_role" "dms_vpc_role" {
+  name = "dms-vpc-role"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Principal = {
+          Service = "dms.amazonaws.com"
+        }
+        Action = "sts:AssumeRole"
+      }
+    ]
+  })
+
+  tags = {
+    Name = "dms-vpc-role"
+  }
+}
+
+resource "aws_iam_policy" "dms_vpc_custom_policy" {
+  name        = "dms-vpc-custom-policy"
+  description = "Allow DMS to manage EC2 network interfaces"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "ec2:Describe*",
+          "ec2:CreateNetworkInterface",
+          "ec2:DeleteNetworkInterface",
+          "ec2:AttachNetworkInterface"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "dms_vpc_custom_attach" {
+  role       = aws_iam_role.dms_vpc_role.name
+  policy_arn = aws_iam_policy.dms_vpc_custom_policy.arn
+}
+
+resource "aws_iam_role" "dms_assessment_role" {
+  name = "DMSAssessmentRole"
+
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [{
+      Effect    = "Allow",
+      Principal = { Service = "dms.amazonaws.com" },
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_policy" "dms_assessment_policy" {
+  name = "DMSAssessmentPolicy"
+
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect = "Allow",
+        Action = ["s3:*"],
+        Resource = ["arn:aws:s3:::liftify-assessment-*", "arn:aws:s3:::liftify-assessment-*/*"]
+      },
+      {
+        Effect = "Allow",
+        Action = ["dms:*"],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+resource "aws_iam_role_policy_attachment" "attach" {
+  role       = aws_iam_role.dms_assessment_role.name
+  policy_arn = aws_iam_policy.dms_assessment_policy.arn
+}
+"""
+    example_route53_record_code = """
+resource "aws_route53_record" "Cafe_Management_www_onprem" {
+  zone_id = aws_route53_zone.Cafe_Management_zone_1.zone_id
+  name    = "www.${var.domain_name}"
+  type    = "A"
+  ttl     = 300
+  records = ["34.22.91.176"]
+
+  weighted_routing_policy {
+    weight = 225
+  }
+
+  set_identifier = "www-onprem-weight-225"
+}
+
+resource "aws_route53_record" "Cafe_Management_www_alb" {
+  zone_id = aws_route53_zone.Cafe_Management_zone_1.zone_id
+  name    = "www.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = aws_lb.Cafe_Management_alb_1.dns_name
+    zone_id                = aws_lb.Cafe_Management_alb_1.zone_id
+    evaluate_target_health = true
+  }
+
+  weighted_routing_policy {
+    weight = 0
+  }
+
+  set_identifier = "www-alb-weight-0"
+}
+"""
+
     # Claude 프롬프트(명세서를 Terraform 코드로 바꿔달라고 요청)
     prompt = f"""
 You are a professional Terraform architect.
@@ -44,6 +164,8 @@ You are a professional Terraform architect.
 You are given a detailed AWS infrastructure specification.
 
 Your task is to generate production-ready Terraform code using valid and recommended Terraform HCL syntax only.
+
+Use AWS provider version = "~> 6.0" when generating the Terraform code.
 
 --- AWS INFRASTRUCTURE SPECIFICATION ---
 {input_text}
@@ -70,26 +192,29 @@ In variables.tf, you must include the following variables exactly as written bel
 - A variable named db_name with the description "DB name" the default "{SERVICE_NAME}_db".
 - A variable named db_username with the description "master user" the default "admin".
 - A variable named db_password with the description "master password" and with sensitive = true and the default "password".
-- A variable named domain_name with the description "Domain name" and the default "rainhyeon.store".
+- A variable named domain_name with the description "Domain name" and the default "bboaws.shop".
 
 Do not modify the variable names, descriptions, or default values.
 These variables must always be present in every variables.tf you generate.
 
-3. Given the following input table {input_text} with two columns:
+3. Create TWO `aws_route53_record` resources with two columns in {input_text}:
 - "서브도메인(record)": subdomain (e.g., www, api, test)
 - "온프레미스 공인 IP": onprem_ip
 
-For the domain "rainhyeon.store", perform the following for each row in the table:
+For the domain "bboaws.shop", perform the following for each row in the table:
+--- EXAMPLE ROUTE53 RECORD CODE START ---
+{example_route53_record_code}
+--- EXAMPLE ROUTE53 RECORD CODE START ---
 
-1. For each value in the "record" column (call it "subdomain") and its matching "온프레미스 공인 IP" (call it "onprem_ip"):
-- (a) Create a Route53 resource "A" record for the subdomain "subdomain.rainhyeon.store" with:
+For each value in the "record" column (call it "subdomain") and its matching "온프레미스 공인 IP" (call it "onprem_ip"):
+- (a) Create a Route53 resource "A" record for the subdomain "subdomain.bboaws.shop" with:
     - `records = ["onprem_ip"]`
     - `weighted_routing_policy {{ weight = 225 }}`
     - `set_identifier = "subdomain-onprem-weight-225"`
     - `type = "A"`
     - `zone_id = aws_route53_zone.this.zone_id`
      - `ttl = 300`
-- (b) Create a second "A" record for the same subdomain ("subdomain.rainhyeon.store"), but as an alias to the ALB, with:
+- (b) Create a second "A" record for the same subdomain ("subdomain.bboaws.shop"), but as an alias to the ALB, with:
     - `alias name = aws_lb.this.dns_name, zone_id = aws_lb.this.zone_id, evaluate_target_health = true`
     - `weighted_routing_policy {{ weight = 0 }}`
     - `set_identifier = "subdomain-alb-weight-0"`
@@ -99,7 +224,7 @@ This means: for every row, you must output exactly TWO aws_route53_record resour
 - Do not merge or collapse these resources into one. There must always be two Route53 records per subdomain.
 - The hosted zone must always be created as a resource using the domain_name variable, never data lookup.
 - "aws_route53_record" resource name must start with {SERVICE_NAME}.
-- Update the health_check path to "health check 경로" based on the {input_text}.
+- Update the `health_check` path of `aws_lb_target_group` to "health check 경로" based on the {input_text}.
 
 4. Key Design Constraints
 - Never import resources dynamically with data. create your own.
@@ -130,12 +255,20 @@ This means: for every row, you must output exactly TWO aws_route53_record resour
 - If you generate an `aws_db_instance` resource, you must configure the timezone as `Asia/Seoul`.  
   - For MySQL, MariaDB, and PostgreSQL, set the timezone by attaching a `aws_db_parameter_group` with the appropriate timezone parameter.  
   - For SQL Server, set the `timezone` argument in the resource block directly.
+- `Identifier` for `aws_db_instance` is set to {SERVICE_NAME}_db
 
-6. Resource Naming Rules
+6. Default IAM Code
+In every generated Terraform code, always include the following IAM roles and policies exactly as written. Do not modify or skip.
+
+--- DEFAULT IAM CODE START ---
+{default_dms_iam_role}
+--- DEFAULT IAM CODE END ---
+
+7. Resource Naming Rules
 - For every resource, set the Terraform local name and its tags["Name"] value to be identical, following the format: "{SERVICE_NAME}_resource_type".
 - Never change domain name and {SERVICE_NAME}.
 
-7. Output Rules
+8. Output Rules
 - Output one code block per file
 - Use `for_each` where applicable (e.g., Route53 CNAME records)
 - Avoid placeholders — use realistic values or derive them from input
@@ -147,7 +280,7 @@ Your goal is to produce complete, deployable Terraform code for the given infras
     # Bedrock API 요청 body
     body = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 8184,
+        "max_tokens": 9500,
         "top_k": 250,
         "stop_sequences": [],
         "temperature": 0,
