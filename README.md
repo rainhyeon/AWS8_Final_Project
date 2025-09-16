@@ -25,12 +25,12 @@
 ### 인프라 마이그레이션 파이프라인
 |1. Terraform 코드 생성 | 2. 정적 분석 | 3. 동적 분석 | 4. 최종 배포 |
 |-----|-----|-----|-----|
-| <img width="1531" height="863" alt="image" src="https://github.com/user-attachments/assets/bd6494b2-04dd-48d0-99ce-3d31e5078983" />| <img width="1546" height="858" alt="image" src="https://github.com/user-attachments/assets/99ca99a4-5681-4597-b9e6-0787d2326ba7" />|<img width="1535" height="851" alt="image" src="https://github.com/user-attachments/assets/8b54783b-54a4-4f8d-b463-f5a7e139b515" />|<img width="1682" height="862" alt="image" src="https://github.com/user-attachments/assets/e9c66578-3f9a-4f58-be0d-2709e4cc40c8" />|
+|<img width="1531" height="863" alt="image" src="https://github.com/user-attachments/assets/bd6494b2-04dd-48d0-99ce-3d31e5078983" />| <img width="1546" height="858" alt="image" src="https://github.com/user-attachments/assets/99ca99a4-5681-4597-b9e6-0787d2326ba7" />|<img width="1535" height="851" alt="image" src="https://github.com/user-attachments/assets/8b54783b-54a4-4f8d-b463-f5a7e139b515" />|<img width="1682" height="862" alt="image" src="https://github.com/user-attachments/assets/e9c66578-3f9a-4f58-be0d-2709e4cc40c8" />|
 |Bedrock 기반 Terraform 코드 자동 생성 파이프라인 개발 | **TFLint, Terratest** 활용한 IaC 정적·동적 분석 자동화|||
 
 ### 상세 기능 설명
 |Terraform 코드|온프레미스 명세서|**Step Functions** 기반 이벤트 흐름 오케스트레이션 설계|**EventBridge + CodeBuild** 상태 추적 로직 구현|**S3 + DynamoDB**를 활용한 tfstate 무결성 및 잠금 관리|
-|-----|-----|-----|-----|
+|-----|-----|-----|-----|------|
 |<img width="1089" height="603" alt="image" src="https://github.com/user-attachments/assets/1f492405-1cc7-4b3b-9d24-022775c85e92" />|<img width="1181" height="655" alt="image" src="https://github.com/user-attachments/assets/c4c0cc41-5532-4958-86df-df6ea2531e58" />|<img width="1501" height="810" alt="image" src="https://github.com/user-attachments/assets/86a673f0-db65-4d85-bb8a-5699948940b2" /><img width="1292" height="719" alt="image" src="https://github.com/user-attachments/assets/9226d755-edd5-492b-a5c8-27da8c36e178" />|<img width="1305" height="712" alt="image" src="https://github.com/user-attachments/assets/73f6705f-e1e1-445d-8414-914f6bc3ac5f" />|
 
 ## 2. 보안
