@@ -4,52 +4,32 @@
 - 온프레미스 기반 서비스를 **AWS 환경으로 자동 마이그레이션** (3단계: Infra → DB → Application)  
 - 고객 상황에 맞는 **MSA 구조 전환 방안 제시 및 설계 자동화**
 
+### 아키텍처
+<img width="1920" height="1080" alt="50" src="https://github.com/user-attachments/assets/a13a7610-a1ae-4208-b40b-20bcb3710945" />
+
 ---
 
 ## 🛠 기술 스택
-
-### 🔹 Container
-- **EKS**, **ECR**
-
-### 🔹 Data & Storage
-- **RDS**, **DynamoDB**, **DMS**, **S3**
-
-### 🔹 AI
-- **Amazon Bedrock**
-
-### 🔹 CI/CD
-- **CodeBuild**, **Jenkins**, **ArgoCD**
-
-### 🔹 Monitoring
-- **CloudTrail**, **CloudWatch**, **Prometheus**, **Grafana**
-
-### 🔹 IaC
-- **Terraform**, **Terraform Cloud**, **TFLint**, **Terratest**
-
-### 🔹 Orchestration & Eventflow
-- **Step Functions**, **EventBridge**
-
-### 🔹 Data Analytics
-- **Athena**
-
-### 🔹 Notification
-- **Slack**
-
-### 🔹 Collaboration
-- **Discord**, **Notion**, **GitHub**
+<img width="837" height="454" alt="image" src="https://github.com/user-attachments/assets/8ef7f3a0-5278-44f6-8dc8-d402290784d5" />
+<img width="852" height="462" alt="image" src="https://github.com/user-attachments/assets/b8d15a3c-104a-46a8-9a94-d2a5276d7634" />
 
 ---
 
 ## 👨‍💻 역할
-<img width="1920" height="1080" alt="50" src="https://github.com/user-attachments/assets/a13a7610-a1ae-4208-b40b-20bcb3710945" />
 
 ### 1. Infra 마이그레이션 자동화 시스템 설계 및 구현
+
+|1. Terraform 코드 생성 | 2. 정적 분석 | 3. 동적 분석 | 4. 최종 배포 |
+|------|------|------|------|
+| <img width="1531" height="863" alt="image" src="https://github.com/user-attachments/assets/bd6494b2-04dd-48d0-99ce-3d31e5078983" />| <img width="1546" height="858" alt="image" src="https://github.com/user-attachments/assets/99ca99a4-5681-4597-b9e6-0787d2326ba7" />
+ | <img width="1535" height="851" alt="image" src="https://github.com/user-attachments/assets/8b54783b-54a4-4f8d-b463-f5a7e139b515" />| <img width="1682" height="862" alt="image" src="https://github.com/user-attachments/assets/e9c66578-3f9a-4f58-be0d-2709e4cc40c8" />|
+|------|------|------|------|
+|Bedrock 기반 Terraform 코드 자동 생성 파이프라인 개발 | TFLint, Terratest** 활용한 IaC 정적·동적 분석 자동화|------|
 - 기업 마이그레이션 **장애 요인 분석 및 대응 전략 수립**
-- **Bedrock 기반 Terraform 코드 자동 생성 파이프라인 개발**
 - EC2, SSM, IAM, RDS, ALB, ACM, Route53(가중치 라우팅) **Terraform 구현**
-- **TFLint, Terratest** 활용한 IaC 정적·동적 분석 자동화
 - **Step Functions** 기반 이벤트 흐름 오케스트레이션 설계
 - **EventBridge + CodeBuild** 상태 추적 로직 구현
+
 - **S3 + DynamoDB**를 활용한 tfstate 무결성 및 잠금 관리
 - **CloudTrail 로그 기반 최소 권한 정책 설계**
 
@@ -57,6 +37,7 @@
 - **최소 권한 기반 IAM Role 인증 체계 설계**
 - **Terraform Cloud 환경변수 관리**를 통한 AWS Credential & DB 민감정보 안전 관리
 - **AWS Secret Manager + IAM Role 연계**를 통한 GitHub 인증 자동화 파이프라인 구축
+<img width="1488" height="778" alt="image" src="https://github.com/user-attachments/assets/967f1e10-bcfb-450f-a1ee-d0be2414be7c" />
 
 ---
 
@@ -67,6 +48,8 @@
 - Bedrock 모델별 **정확도·요구사항 충실도 분석** → Claude Sonnet 4 최종 선정
 - **Lambda 권한 오류 진단 및 정책 보완**
 - Step Functions + CodeBuild 연계를 위한 **TaskToken S3 저장 방식 설계**
+  
+<img width="863" height="474" alt="image" src="https://github.com/user-attachments/assets/dd1e062e-7974-4f74-8651-65dc3b428912" />
 
 ---
 
