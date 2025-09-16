@@ -53,11 +53,15 @@
 
 ## 📈 성과
 - 전체 이관 소요시간 **62% 단축**
+
 <img width="863" height="474" alt="image" src="https://github.com/user-attachments/assets/dd1e062e-7974-4f74-8651-65dc3b428912" />
+
 - Terraform 코드 정확도 **98% 향상**
 - Jenkins Credential 기반 **민감 정보 보호**
 - Bedrock 모델별 **정확도·요구사항 충실도 분석** → Claude Sonnet 4 최종 선정
+
 <img width="1509" height="828" alt="image" src="https://github.com/user-attachments/assets/c1cd6ee1-bb91-4b84-89f2-edd58bdf7ab1" />
+
 - **Lambda 권한 오류 진단 및 정책 보완**
 - Step Functions + CodeBuild 연계를 위한 **TaskToken S3 저장 방식 설계**
 
