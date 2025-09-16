@@ -63,11 +63,20 @@
 
 ---
 
-## 🎬 시연 영상
-- **Infra 단계**: [Youtube Link](https://youtu.be/u5mxL9T5f1E?feature=shared)  
-- **DB 단계**: [Youtube Link](https://youtu.be/DnJUB3bH_rc?feature=shared)  
-- **App 단계**: [Youtube Link](https://youtu.be/DSZxG3gsO7Q?feature=shared)  
-- **Final Report**: [Youtube Link](https://youtu.be/4Bj82-InGO4?feature=shared)  
+### 📽️ 시연 영상
+
+- **Infra 단계**  
+[![Infra 단계](http://img.youtube.com/vi/u5mxL9T5f1E/0.jpg)](https://youtu.be/u5mxL9T5f1E)
+
+- **DB 단계**  
+[![DB 단계](http://img.youtube.com/vi/DnJUB3bH_rc/0.jpg)](https://youtu.be/DnJUB3bH_rc)
+
+- **App 단계**  
+[![App 단계](http://img.youtube.com/vi/DSZxG3gsO7Q/0.jpg)](https://youtu.be/DSZxG3gsO7Q)
+
+- **Final Report**  
+[![Final Report](http://img.youtube.com/vi/4Bj82-InGO4/0.jpg)](https://youtu.be/4Bj82-InGO4)
+
 
 ---
 
@@ -78,7 +87,8 @@
 ---
 
 ## 📑 자료
-- **PDF 문서** → [다운로드](https://drive.google.com/file/d/1xP2rMU9oImp3Ymgez3LvGyK-lAJBVwYS/view?usp=sharing)
+- **PDF 문서**
+[![PDF 바로보기](https://img.shields.io/badge/PDF-Open-red?logo=adobeacrobatreader)](https://drive.google.com/file/d/1xP2rMU9oImp3Ymgez3LvGyK-lAJBVwYS/view?usp=sharing)
 
 
 ## 워크 플로우
