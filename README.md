@@ -1,4 +1,96 @@
-# AWS9_Final_Project
+#AWS 기반 자동 마이그레이션 및 MSA 전환 프로젝트
+
+---
+
+## 프로젝트 개요
+- 온프레미스 기반 서비스를 **AWS 환경으로 자동 마이그레이션** (3단계: Infra → DB → Application)  
+- 고객 상황에 맞는 **MSA 구조 전환 방안 제시 및 설계 자동화**
+
+---
+
+## 🛠 기술 스택
+
+### 🔹 Container
+- **EKS**, **ECR**
+
+### 🔹 Data & Storage
+- **RDS**, **DynamoDB**, **DMS**, **S3**
+
+### 🔹 AI
+- **Amazon Bedrock**
+
+### 🔹 CI/CD
+- **CodeBuild**, **Jenkins**, **ArgoCD**
+
+### 🔹 Monitoring
+- **CloudTrail**, **CloudWatch**, **Prometheus**, **Grafana**
+
+### 🔹 IaC
+- **Terraform**, **Terraform Cloud**, **TFLint**, **Terratest**
+
+### 🔹 Orchestration & Eventflow
+- **Step Functions**, **EventBridge**
+
+### 🔹 Data Analytics
+- **Athena**
+
+### 🔹 Notification
+- **Slack**
+
+### 🔹 Collaboration
+- **Discord**, **Notion**, **GitHub**
+
+---
+
+## 👨‍💻 역할
+<img width="1920" height="1080" alt="50" src="https://github.com/user-attachments/assets/a13a7610-a1ae-4208-b40b-20bcb3710945" />
+
+### 1. Infra 마이그레이션 자동화 시스템 설계 및 구현
+- 기업 마이그레이션 **장애 요인 분석 및 대응 전략 수립**
+- **Bedrock 기반 Terraform 코드 자동 생성 파이프라인 개발**
+- EC2, SSM, IAM, RDS, ALB, ACM, Route53(가중치 라우팅) **Terraform 구현**
+- **TFLint, Terratest** 활용한 IaC 정적·동적 분석 자동화
+- **Step Functions** 기반 이벤트 흐름 오케스트레이션 설계
+- **EventBridge + CodeBuild** 상태 추적 로직 구현
+- **S3 + DynamoDB**를 활용한 tfstate 무결성 및 잠금 관리
+- **CloudTrail 로그 기반 최소 권한 정책 설계**
+
+### 2. 보안
+- **최소 권한 기반 IAM Role 인증 체계 설계**
+- **Terraform Cloud 환경변수 관리**를 통한 AWS Credential & DB 민감정보 안전 관리
+- **AWS Secret Manager + IAM Role 연계**를 통한 GitHub 인증 자동화 파이프라인 구축
+
+---
+
+## 📈 성과
+- 전체 이관 소요시간 **62% 단축**
+- Terraform 코드 정확도 **98% 향상**
+- Jenkins Credential 기반 **민감 정보 보호**
+- Bedrock 모델별 **정확도·요구사항 충실도 분석** → Claude Sonnet 4 최종 선정
+- **Lambda 권한 오류 진단 및 정책 보완**
+- Step Functions + CodeBuild 연계를 위한 **TaskToken S3 저장 방식 설계**
+
+---
+
+## 🎬 시연 영상
+- **Infra 단계**: [Youtube Link](https://youtu.be/u5mxL9T5f1E?feature=shared)  
+- **DB 단계**: [Youtube Link](https://youtu.be/DnJUB3bH_rc?feature=shared)  
+- **App 단계**: [Youtube Link](https://youtu.be/DSZxG3gsO7Q?feature=shared)  
+- **Final Report**: [Youtube Link](https://youtu.be/4Bj82-InGO4?feature=shared)  
+
+---
+
+## 📂 GitHub Repository
+- **Terraform 코드** → [🔗 Repo Link](https://github.com/rainhyeon/TerraCloudTest)  
+- **Lambda & Step Functions** → [🔗 Repo Link](https://github.com/rainhyeon/AWS8_Final_Project)  
+
+---
+
+## 📑 자료
+- **PDF 문서** → [다운로드](https://drive.google.com/file/d/1xP2rMU9oImp3Ymgez3LvGyK-lAJBVwYS/view?usp=sharing)
+
+
+## 워크 플로우
 
 ### stepfunction/6. 5steps
 <img width="874" height="785" alt="stepfunctions_graph (3)" src="https://github.com/user-attachments/assets/718d62f7-d1f3-4cc8-b70e-8bc788d61b8b" />
