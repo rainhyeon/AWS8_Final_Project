@@ -53,13 +53,13 @@
 
 ## 📈 성과
 - 전체 이관 소요시간 **62% 단축**
+<img width="863" height="474" alt="image" src="https://github.com/user-attachments/assets/dd1e062e-7974-4f74-8651-65dc3b428912" />
 - Terraform 코드 정확도 **98% 향상**
 - Jenkins Credential 기반 **민감 정보 보호**
 - Bedrock 모델별 **정확도·요구사항 충실도 분석** → Claude Sonnet 4 최종 선정
+<img width="1509" height="828" alt="image" src="https://github.com/user-attachments/assets/c1cd6ee1-bb91-4b84-89f2-edd58bdf7ab1" />
 - **Lambda 권한 오류 진단 및 정책 보완**
 - Step Functions + CodeBuild 연계를 위한 **TaskToken S3 저장 방식 설계**
-  
-<img width="863" height="474" alt="image" src="https://github.com/user-attachments/assets/dd1e062e-7974-4f74-8651-65dc3b428912" />
 
 ---
 
@@ -90,8 +90,9 @@
 - **PDF 문서**
 [![PDF 바로보기](https://img.shields.io/badge/PDF-Open-red?logo=adobeacrobatreader)](https://drive.google.com/file/d/1xP2rMU9oImp3Ymgez3LvGyK-lAJBVwYS/view?usp=sharing)
 
+---
 
-## 워크 플로우
+## 📊 워크 플로우
 
 ### stepfunction/6. 5steps
 <img width="874" height="785" alt="stepfunctions_graph (3)" src="https://github.com/user-attachments/assets/718d62f7-d1f3-4cc8-b70e-8bc788d61b8b" />
